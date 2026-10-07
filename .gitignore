@@ -1,0 +1,8 @@
+dist/
+unsigned/
+signed/
+node_modules/
+web-ext-artifacts/
+.env
+.env.*
+*.api-key

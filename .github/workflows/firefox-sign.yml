@@ -1,0 +1,92 @@
+name: Build permanent Firefox add-on
+run-name: Firefox ${{ inputs.version }} — ${{ inputs.sign && 'signed installer' || 'validation only' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'New Firefox version (increase after each accepted Mozilla submission)'
+        required: true
+        default: '1.1.2'
+        type: string
+      sign:
+        description: 'Submit to Mozilla for signing (requires the two AMO secrets)'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firefox-signing
+  cancel-in-progress: false
+
+jobs:
+  firefox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check signing credentials
+        if: inputs.sign
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [ -z "$AMO_JWT_ISSUER" ] || [ -z "$AMO_JWT_SECRET" ]; then
+            echo '::error::Add AMO_JWT_ISSUER and AMO_JWT_SECRET under Settings > Secrets and variables > Actions. See FIREFOX_SETUP.md.'
+            exit 1
+          fi
+      - name: Prepare Firefox package
+        env:
+          FIREFOX_VERSION: ${{ inputs.version }}
+        run: |
+          node --check content.js
+          node scripts/prepare-firefox.mjs "$FIREFOX_VERSION"
+      - name: Install Mozilla packaging tool
+        run: |
+          npm install --prefix "$RUNNER_TEMP/firefox-tools" --no-audit --no-fund --ignore-scripts web-ext@10.5.0
+          echo "$RUNNER_TEMP/firefox-tools/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Validate Firefox extension
+        run: web-ext lint --source-dir dist/firefox --self-hosted --warnings-as-errors
+      - name: Build unsigned package
+        run: web-ext build --source-dir dist/firefox --artifacts-dir unsigned --overwrite-dest
+      - name: Sign for self-distribution
+        if: inputs.sign
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: web-ext sign --source-dir dist/firefox --artifacts-dir signed --channel unlisted --approval-timeout 1200000
+      - name: Save permanent installer
+        if: inputs.sign
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-signed-${{ inputs.version }}
+          path: signed/*.xpi
+          if-no-files-found: error
+          retention-days: 90
+      - name: Save validation package
+        if: ${{ !inputs.sign }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-unsigned-${{ inputs.version }}
+          path: unsigned/*.zip
+          if-no-files-found: error
+      - name: Installation instructions
+        if: inputs.sign
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'NOTE'
+          ## Your permanent Firefox installer
+          Download the **firefox-signed** artifact below and unzip the outer GitHub artifact ZIP.
+          Keep the `.xpi` file intact. In Firefox, open `about:addons`, click the gear,
+          choose **Install Add-on From File…**, and select the `.xpi`.
+          Confirm installation, allow access to Google Translate if asked, and refresh its tab.
+          Remove the temporary copy first to avoid two shortcut handlers.
+          This installation survives Firefox restarts. No public Mozilla store listing was created.
+          NOTE

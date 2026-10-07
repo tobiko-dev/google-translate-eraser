@@ -37,7 +37,7 @@ Read your translation, press <kbd>`</kbd>, and you're ready for another image. T
 2. Open `about:debugging#/runtime/this-firefox` and click **Load Temporary Add-on…**.
 3. Select `manifest.json`, then refresh Google Translate.
 
-Firefox removes temporary add-ons when it restarts. This download is not a signed permanent Firefox add-on.
+Firefox removes temporary add-ons when it restarts. For an installation that stays, use the **[permanent Firefox setup](FIREFOX_SETUP.md)**. The ZIP above is for temporary installation.
 
 </details>
 

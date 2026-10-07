@@ -15,7 +15,7 @@ The v1.1.1 filename identifies the flat packaging correction. The manifest insid
 - On an empty Images page, a short “Ready for a new image” toast appears.
 - Otherwise, the script searches for Google's clear/remove/close control and clicks it. If the empty upload screen is not detected after 450 ms, the page reloads. A missing clear control also causes an immediate reload.
 
-There is no build step, package manager, background worker, or external dependency.
+The runtime has no build step, package manager, background worker, or external dependency. The optional Firefox signing workflow uses Node.js and Mozilla’s `web-ext` to prepare a separate signed installer; see [Firefox setup](FIREFOX_SETUP.md).
 
 ## Privacy and permissions
 
@@ -23,7 +23,7 @@ The extension declares no additional permissions. Its content script can read an
 
 ## Browser support and validation
 
-The user confirmed the extracted package works in Edge. Brave and Firefox are intended targets of the same WebExtensions package, but were not independently tested during this publication. Firefox's documented install path here is temporary and must be repeated after restarting the browser; this repository does not supply a signed Firefox add-on.
+The user confirmed the extracted package works in Edge. Brave and Firefox are intended targets of the same WebExtensions package, but were not independently tested during this publication. Firefox's documented install path here is temporary and must be repeated after restarting the browser; the repository now includes an optional signing workflow, which supplies a permanent installer only after a successful Mozilla signing run.
 
 Publication checks cover JavaScript syntax, manifest references, byte-for-byte preservation of runtime files and the original ZIP, and local README asset links. The screenshots show the supplied loaded-image and empty-upload states; they are not an automated browser test recording.
 
@@ -52,3 +52,7 @@ Reloading is the fallback when the clear control or empty screen cannot be recog
 | `downloads/` | Original flat installation ZIP |
 | `README.md` | Visual introduction and short installation guide |
 | `TECHNICAL_DETAILS.md` | Implementation, validation, and troubleshooting |
+
+## Firefox signing automation
+
+See [FIREFOX_SETUP.md](FIREFOX_SETUP.md) for one-time credentials, the signing workflow, installation, and retries. `scripts/prepare-firefox.mjs` creates a three-file Firefox package with a stable Gecko ID and no-data-collection declaration. It leaves the user-tested root runtime files and original download intact.
